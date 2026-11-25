@@ -5,6 +5,7 @@ import org.jsoup.nodes.Document
 import java.math.BigDecimal
 
 data class Book(
+    val url: String,
     val name: String,
     val category: String,
     val priceInclTax: BigDecimal,
@@ -14,24 +15,21 @@ data class Book(
     val rating: Int,
     val reviewCount: Int,
     val imageUrl: String,
-    val description: String? // Nullable for books with no description
+    val description: String? // null for books with no description
 )
 
 fun main() {
-    print("Enter a book URL: ")
-    val url = readln()
-    val book = parseBook(url)
+    val startTime = System.currentTimeMillis()
 
-    println("Name: ${book.name}")
-    println("Category: ${book.category}")
-    println("Price incl. tax: ${book.priceInclTax}")
-    println("Price excl. tax: ${book.priceExclTax}")
-    println("Availability: ${book.availabilityText}")
-    println("Stock count: ${book.stockCount}")
-    println("Rating: ${book.rating}")
-    println("Review count: ${book.reviewCount}")
-    println("Image URL: ${book.imageUrl}")
-    println("Description: ${book.description}")
+    val allUrls = findAllBookUrls(startUrl)
+    val urls = limit?.let { allUrls.take(it) } ?: allUrls.toList()
+
+    val books = parseAll(urls)
+    writeBooksToJson(books, outputFile)
+    printChecks(books)
+
+    val seconds = (System.currentTimeMillis() - startTime) / 1000
+    println("Wrote $outputFile. Total time: $seconds seconds")
 }
 
 fun parseBook(url: String): Book {
@@ -46,13 +44,14 @@ fun parseBook(url: String): Book {
     val reviewCount = tableValue(doc, "Number of reviews").toInt()
 
     val stockCount = findNumber(availabilityText)
-    val ratingWords = doc.select("p.star-rating").attr("class")
+    val ratingWords = doc.select("div.product_main p.star-rating").attr("class")
     val rating = ratingToNumber(ratingWords)
 
     val imageUrl = doc.select("div.item.active img").first()?.absUrl("src") ?: ""
     val description = doc.select("#product_description + p").first()?.text()
 
     return Book(
+        url = url,
         name = name,
         category = category,
         priceInclTax = priceInclTax,
@@ -85,5 +84,3 @@ fun ratingToNumber(classes: String): Int = when {
     classes.contains("Five") -> 5
     else -> 0
 }
-
-
